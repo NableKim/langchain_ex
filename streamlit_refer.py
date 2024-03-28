@@ -1,25 +1,30 @@
+import os
+from dotenv import load_dotenv
+
 import streamlit as st
 import tiktoken
 from loguru import logger
 
 from langchain.chains import ConversationalRetrievalChain
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 
-from langchain.document_loaders import PyPDFLoader
-from langchain.document_loaders import Docx2txtLoader
-from langchain.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import Docx2txtLoader
+from langchain_community.document_loaders import UnstructuredPowerPointLoader
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 from langchain.memory import ConversationBufferMemory
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 
 # from streamlit_chat import message
-from langchain.callbacks import get_openai_callback
+from langchain_community.callbacks import get_openai_callback
 from langchain.memory import StreamlitChatMessageHistory
 
 def main():
+    load_dotenv()
+
     st.set_page_config(
     page_title="DirChat",
     page_icon=":books:")
@@ -36,8 +41,8 @@ def main():
         st.session_state.processComplete = None
 
     with st.sidebar:
-        uploaded_files =  st.file_uploader("Upload your file",type=['pdf','docx'],accept_multiple_files=True)
-        openai_api_key = st.text_input("OpenAI API Key", key="chatbot_api_key", type="password")
+        uploaded_files = st.file_uploader("Upload your file",type=['pdf','docx'],accept_multiple_files=True)
+        openai_api_key = os.getenv("OPENAI_API", st.text_input("OpenAI API Key", key="chatbot_api_key", type="password"))
         process = st.button("Process")
     if process:
         if not openai_api_key:
