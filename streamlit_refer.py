@@ -22,6 +22,10 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.callbacks import get_openai_callback
 from langchain.memory import StreamlitChatMessageHistory
 
+# vector db
+from langchain_community.vectorstores import Milvus, Weaviate
+import weaviate
+
 def main():
     load_dotenv()
 
@@ -50,9 +54,9 @@ def main():
             st.stop()
         files_text = get_text(uploaded_files)
         text_chunks = get_text_chunks(files_text)
-        vetorestore = get_vectorstore(text_chunks)
+        vector_store = get_vectorstore(text_chunks)
      
-        st.session_state.conversation = get_conversation_chain(vetorestore,openai_api_key) 
+        st.session_state.conversation = get_conversation_chain(vector_store, openai_api_key)
 
         st.session_state.processComplete = True
 
@@ -137,16 +141,31 @@ def get_vectorstore(text_chunks):
                                         model_name="jhgan/ko-sroberta-multitask",
                                         model_kwargs={'device': 'cpu'},
                                         encode_kwargs={'normalize_embeddings': True}
-                                        )  
-    vectordb = FAISS.from_documents(text_chunks, embeddings)
-    return vectordb
+                                        )
 
-def get_conversation_chain(vetorestore,openai_api_key):
+    # Milvus DB
+    vector_db = Milvus.from_documents(
+        text_chunks,
+        embeddings,
+        connection_args={"host": os.getenv("VECTOR_DB_HOST"), "port": os.getenv("VECTOR_DB_PORT") },
+        collection_name="shorten_dictionary",
+        drop_old=True
+    )
+
+    # Weaviate DB
+    # client = weaviate.Client(os.getenv("VECTOR_DB_HOST"))
+    # vector_db = Weaviate.from_documents(text_chunks, embeddings, client=client, by_text=False)
+
+    # 메모리 기반 FAISS DB
+    #vectordb = FAISS.from_documents(text_chunks, embeddings)
+    return vector_db
+
+def get_conversation_chain(vector_store, openai_api_key):
     llm = ChatOpenAI(openai_api_key=openai_api_key, model_name = 'gpt-3.5-turbo',temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
             llm=llm, 
             chain_type="stuff", 
-            retriever=vetorestore.as_retriever(search_type = 'mmr', vervose = True), 
+            retriever=vector_store.as_retriever(search_type = 'mmr', vervose = True),
             memory=ConversationBufferMemory(memory_key='chat_history', return_messages=True, output_key='answer'),
             get_chat_history=lambda h: h,
             return_source_documents=True,
@@ -154,8 +173,6 @@ def get_conversation_chain(vetorestore,openai_api_key):
         )
 
     return conversation_chain
-
-
 
 if __name__ == '__main__':
     main()

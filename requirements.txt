@@ -13,3 +13,5 @@ docx2txt
 watchdog
 python-dotenv
 langchain_openai
+pymilvus
+weaviate-client
